@@ -26,29 +26,31 @@ breakPoint = Flatten @ First @ SortBy[EuclideanDistance[centroid,#]&] @ ({x,y} /
 collisionSide = Extract[#,{1}]& @ First @ SortBy[sides, RegionDistance[#,breakPoint]&];
 castVec = breakPoint - centroid;
 sideVec = collisionSide[[2]]-collisionSide[[1]];
-angle = VectorAngle[sideVec,castVec]
+angle = VectorAngle[sideVec,castVec];
 newRay = 2Pi - angle;
-$RecursionLimit
+castInfo = fullRayCast[poly, Pi/6]
 
-Graphics[{White,poly,Red,Point[centroid],Black,Thickness-> 0.005, boundary, Blue, Point[breakPoint]}]
+rotateByAngle[{x_,y_}, theta_] := (
+	{x*Cos[theta]-y*Sin[theta],x*Sin[theta]+y*Cos[theta]}
+);
+
+intersectionWithRay[line_,ray_] := (
+	FindInstance[{u,v}\[Element]ray && {u,v}\[Element]line, {u,v}]
+);
 
 (*Calculates raycast from an arbitrary starting point and angle in a polygon*)
-castRayPolygon[poly_, point_, phi_] := Module[{currentSide,ray,sides,collisions,pointOfCollision},
+getIntersectionPolygon[poly_, point_, phi_] := Module[{currentSide,ray,sides,collisions,pointOfCollision},
 	sides = Line /@ Partition[#,2,1]& @ Partition[#,2]& @ (Flatten @ (List @@ RegionBoundary[poly]));
 	currentSide = Extract[#,{1}]& @ First @ SortBy[RegionDistance[#,point]&] @ sides;
-	ray = HalfLine[point,10*AngleVector[phi]];
+	ray = HalfLine[point,AngleVector[{5,phi}]];
 	collisions = Flatten @ FindInstance[{x,y}\[Element]ray && {x,y} \[Element] #,{x,y}]& /@  DeleteElements[sides,{Line@@currentSide}];
 	pointOfCollision = Flatten @ First @ SortBy[EuclideanDistance[centroid,#]&] @ ({x,y} /. DeleteElements[#,{{}}]& @ collisions);
-	Return @ {pointOfCollision, Line @@ ray,sides,point}
+	Return @ {pointOfCollision, currentSide,point}
 ];
 
 (*Returns the angle of reflection necessary for next raycast*)
-calculateAngleOfReflection[point_, sides_, origin_] := Module[{collisionSide,castVec, sideVec},
-	collisionSide = Extract[#,{1}]& @ First @ SortBy[sides, RegionDistance[#,point]&];
+calculateAngleOfReflection[point_, side_, origin_] := Module[{castVec,sideVec},
 	castVec = point - origin;
-	sideVec = collisionSide[[2]] - collisionSide[[1]];
-	2Pi - VectorAngle[sideVec,castVec]
+	sideVec = side[[2]] - side[[1]];
+	Pi - VectorAngle[sideVec,castVec]
 ];
-
-
-
